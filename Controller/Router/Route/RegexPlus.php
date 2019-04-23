@@ -28,10 +28,10 @@ class Zend_Controller_Router_Route_RegexPlus extends Zend_Controller_Router_Rout
      * @param string Path used to match against this routing map
      * @return array|false An array of assigned values or a false on a mismatch
      */
-    public function match($path)
+    public function match($path, $partial = false)
     {
         $path = trim(urldecode($path), '/');
-		$this->_regex = '/'.$this->_regex.'/';
+        $this->_regex = '/'.$this->_regex.'/';
         $res = preg_match($this->_regex, $path, $values);
 
         if ($res === 0) return false;
@@ -48,8 +48,8 @@ class Zend_Controller_Router_Route_RegexPlus extends Zend_Controller_Router_Rout
         $values = $this->_getMappedValues($values);
         $params = array();
         if (isset($values['__params'])) {
-        	$params = $this->strToParams($values['__params']);
-        	unset($values['__params']);
+            $params = $this->strToParams($values['__params']);
+            unset($values['__params']);
         }
         $defaults = $this->_getMappedValues($this->_defaults, false, true);
 
