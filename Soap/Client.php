@@ -15,18 +15,24 @@
  * @category   Zend
  * @package    Zend_Soap
  * @subpackage Client
- * @copyright  Copyright (c) 2005-2009 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright  Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
- * @version    $Id: Client.php 18951 2009-11-12 16:26:19Z alexander $
+ * @version    $Id$
  */
 
-/** Zend_Soap_Server */
+/**
+ * @see Zend_Soap_Server
+ */
 require_once 'Zend/Soap/Server.php';
 
-/** Zend_Soap_Client_Local */
+/**
+ * @see Zend_Soap_Client_Local
+ */
 require_once 'Zend/Soap/Client/Local.php';
 
-/** Zend_Soap_Client_Common */
+/**
+ * @see Zend_Soap_Client_Common
+ */
 require_once 'Zend/Soap/Client/Common.php';
 
 /**
@@ -35,7 +41,7 @@ require_once 'Zend/Soap/Client/Common.php';
  * @category   Zend
  * @package    Zend_Soap
  * @subpackage Client
- * @copyright  Copyright (c) 2005-2009 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright  Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
  */
 class Zend_Soap_Client
@@ -83,6 +89,7 @@ class Zend_Soap_Client
     protected $_features            = null;
     protected $_cache_wsdl          = null;
     protected $_user_agent          = null;
+    protected $_exceptions          = null;
 
     /**
      * WSDL used to access server
@@ -262,6 +269,9 @@ class Zend_Soap_Client
                 case 'user_agent':
                     $this->setUserAgent($value);
                     break;
+                case 'exceptions':
+                    $this->setExceptions($value);
+                    break;
 
                 // Not used now
                 // case 'connection_timeout':
@@ -309,10 +319,21 @@ class Zend_Soap_Client
         $options['cache_wsdl']     = $this->getWsdlCache();
         $options['features']       = $this->getSoapFeatures();
         $options['user_agent']     = $this->getUserAgent();
+        $options['exceptions']     = $this->getExceptions();
 
         foreach ($options as $key => $value) {
-            if ($value == null) {
-                unset($options[$key]);
+            /*
+             * ugly hack as I don't know if checking for '=== null'
+             * breaks some other option
+             */
+            if (in_array($key, array('user_agent', 'cache_wsdl', 'compression', 'exceptions'))) {
+                if ($value === null) {
+                    unset($options[$key]);
+                }
+            } else {
+                if ($value == null) {
+                    unset($options[$key]);
+                }
             }
         }
 
@@ -422,13 +443,14 @@ class Zend_Soap_Client
      */
     public function validateUrn($urn)
     {
-        $segs = parse_url($urn);
-        if (isset($segs['scheme'])) {
-            return true;
+        $scheme = parse_url($urn, PHP_URL_SCHEME);
+        if ($scheme === false || $scheme === null) {
+            require_once 'Zend/Soap/Client/Exception.php';
+            throw new Zend_Soap_Client_Exception('Invalid URN');
         }
 
-        require_once 'Zend/Soap/Client/Exception.php';
-        throw new Zend_Soap_Client_Exception('Invalid URN');
+        return true;
+
     }
 
     /**
@@ -750,15 +772,17 @@ class Zend_Soap_Client
     /**
      * Set compression options
      *
-     * @param  int $compressionOptions
+     * @param  int|null $compressionOptions
      * @return Zend_Soap_Client
      */
     public function setCompressionOptions($compressionOptions)
     {
-        $this->_compression = $compressionOptions;
-
+        if ($compressionOptions === null) {
+            $this->_compression = null;
+        } else {
+            $this->_compression = (int)$compressionOptions;
+        }
         $this->_soapClient = null;
-
         return $this;
     }
 
@@ -840,17 +864,23 @@ class Zend_Soap_Client
     /**
      * Set the SOAP Wsdl Caching Options
      *
-     * @param string|int|boolean $caching
+     * @param string|int|boolean|null $caching
      * @return Zend_Soap_Client
      */
-    public function setWsdlCache($options)
+    public function setWsdlCache($caching)
     {
-        $this->_cache_wsdl = $options;
+        if ($caching === null) {
+            $this->_cache_wsdl = null;
+        } else {
+            $this->_cache_wsdl = (int)$caching;
+        }
         return $this;
     }
 
     /**
      * Get current SOAP Wsdl Caching option
+     *
+     * @return int
      */
     public function getWsdlCache()
     {
@@ -860,21 +890,60 @@ class Zend_Soap_Client
     /**
      * Set the string to use in User-Agent header
      *
-     * @param  string $userAgent
+     * @param  string|null $userAgent
      * @return Zend_Soap_Client
      */
     public function setUserAgent($userAgent)
     {
-        $this->_user_agent = (string)$userAgent;
+        if ($userAgent === null) {
+            $this->_user_agent = null;
+        } else {
+            $this->_user_agent = (string)$userAgent;
+        }
         return $this;
     }
 
     /**
      * Get current string to use in User-Agent header
+     *
+     * @return string|null
      */
     public function getUserAgent()
     {
         return $this->_user_agent;
+    }
+
+    /**
+     * Set the exceptions option
+     *
+     * The exceptions option is a boolean value defining whether soap errors
+     * throw exceptions.
+     *
+     * @see http://php.net/manual/soapclient.soapclient.php#refsect1-soapclient.soapclient-parameters
+     *
+     * @param bool $exceptions
+     * @return $this
+     */
+    public function setExceptions($exceptions)
+    {
+        $this->_exceptions = (bool) $exceptions;
+
+        return $this;
+    }
+
+    /**
+     * Get the exceptions option
+     *
+     * The exceptions option is a boolean value defining whether soap errors
+     * throw exceptions.
+     *
+     * @see http://php.net/manual/soapclient.soapclient.php#refsect1-soapclient.soapclient-parameters
+     *
+     * @return bool|null
+     */
+    public function getExceptions()
+    {
+        return $this->_exceptions;
     }
 
     /**

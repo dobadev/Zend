@@ -14,9 +14,9 @@
  *
  * @category   Zend
  * @package    Zend_Tool
- * @copyright  Copyright (c) 2005-2009 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright  Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
- * @version    $Id: Repository.php 18951 2009-11-12 16:26:19Z alexander $
+ * @version    $Id$
  */
 
 require_once 'Zend/Tool/Project/Context/System/Interface.php';
@@ -26,7 +26,7 @@ require_once 'Zend/Tool/Project/Context/System/NotOverwritable.php';
 /**
  * @category   Zend
  * @package    Zend_Tool
- * @copyright  Copyright (c) 2005-2009 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright  Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
  */
 class Zend_Tool_Project_Context_Repository implements Countable
@@ -87,8 +87,12 @@ class Zend_Tool_Project_Context_Repository implements Countable
             require_once 'Zend/Loader.php';
             Zend_Loader::loadClass($contextClass);
         }
-        $context = new $contextClass();
-        return $this->addContext($context);
+        $reflectionContextClass = new ReflectionClass($contextClass);
+        if ($reflectionContextClass->isInstantiable()) {
+            $context = new $contextClass();
+            return $this->addContext($context);
+        }
+        return $this;
     }
 
     /**

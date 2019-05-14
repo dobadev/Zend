@@ -15,8 +15,8 @@
  * @category   Zend
  * @package    Zend_Dojo
  * @subpackage View
- * @copyright  Copyright (c) 2005-2009 Zend Technologies USA Inc. (http://www.zend.com)
- * @version    $Id: Container.php 19058 2009-11-19 19:57:17Z matthew $
+ * @copyright  Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
+ * @version    $Id$
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
  */
 
@@ -29,7 +29,7 @@ require_once 'Zend/Dojo.php';
  *
  * @package    Zend_Dojo
  * @subpackage View
- * @copyright  Copyright (c) 2005-2009 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright  Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
  */
 class Zend_Dojo_View_Helper_Dojo_Container
@@ -67,7 +67,7 @@ class Zend_Dojo_View_Helper_Dojo_Container
      * Dojo version to use from CDN
      * @var string
      */
-    protected $_cdnVersion = '1.3.2';
+    protected $_cdnVersion = '1.5.0';
 
     /**
      * Has the dijit loader been registered?
@@ -209,21 +209,92 @@ class Zend_Dojo_View_Helper_Dojo_Container
     }
 
     /**
-     * Specify a module to require
+     * Add options for the Dojo Container to use
      *
-     * @param  string $module
+     * @param array|Zend_Config Array or Zend_Config object with options to use
      * @return Zend_Dojo_View_Helper_Dojo_Container
      */
-    public function requireModule($module)
+    public function setOptions($options)
     {
-        if (!is_string($module) && !is_array($module)) {
+        if($options instanceof Zend_Config) {
+            $options = $options->toArray();
+        }
+
+        foreach($options as $key => $value) {
+            $key = strtolower($key);
+            switch($key) {
+                case 'requiremodules':
+                    $this->requireModule($value);
+                    break;
+                case 'modulepaths':
+                    foreach($value as $module => $path) {
+                        $this->registerModulePath($module, $path);
+                    }
+                    break;
+                case 'layers':
+                    $value = (array) $value;
+                    foreach($value as $layer) {
+                        $this->addLayer($layer);
+                    }
+                    break;
+                case 'cdnbase':
+                    $this->setCdnBase($value);
+                    break;
+                case 'cdnversion':
+                    $this->setCdnVersion($value);
+                    break;
+                case 'cdndojopath':
+                    $this->setCdnDojoPath($value);
+                    break;
+                case 'localpath':
+                    $this->setLocalPath($value);
+                    break;
+                case 'djconfig':
+                    $this->setDjConfig($value);
+                    break;
+                case 'stylesheetmodules':
+                    $value = (array) $value;
+                    foreach($value as $module) {
+                        $this->addStylesheetModule($module);
+                    }
+                    break;
+                case 'stylesheets':
+                    $value = (array) $value;
+                    foreach($value as $stylesheet) {
+                        $this->addStylesheet($stylesheet);
+                    }
+                    break;
+                case 'registerdojostylesheet':
+                    $this->registerDojoStylesheet($value);
+                    break;
+                case 'enable':
+                    if($value) {
+                        $this->enable();
+                    } else {
+                        $this->disable();
+                    }
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * Specify one or multiple modules to require
+     *
+     * @param  string|array $modules
+     * @return Zend_Dojo_View_Helper_Dojo_Container
+     */
+    public function requireModule($modules)
+    {
+        if (!is_string($modules) && !is_array($modules)) {
             require_once 'Zend/Dojo/View/Exception.php';
             throw new Zend_Dojo_View_Exception('Invalid module name specified; must be a string or an array of strings');
         }
 
-        $module = (array) $module;
+        $modules = (array) $modules;
 
-        foreach ($module as $mod) {
+        foreach ($modules as $mod) {
             if (!preg_match('/^[a-z][a-z0-9._-]+$/i', $mod)) {
                 require_once 'Zend/Dojo/View/Exception.php';
                 throw new Zend_Dojo_View_Exception(sprintf('Module name specified, "%s", contains invalid characters', (string) $mod));
@@ -250,7 +321,8 @@ class Zend_Dojo_View_Helper_Dojo_Container
     /**
      * Register a module path
      *
-     * @param  string $path
+     * @param  string $module The module to register a path for
+     * @param  string $path The path to register for the module
      * @return Zend_Dojo_View_Helper_Dojo_Container
      */
     public function registerModulePath($module, $path)
@@ -285,6 +357,7 @@ class Zend_Dojo_View_Helper_Dojo_Container
         if (!in_array($path, $this->_layers)) {
             $this->_layers[] = $path;
         }
+
         return $this;
     }
 
@@ -357,7 +430,7 @@ class Zend_Dojo_View_Helper_Dojo_Container
     public function setCdnVersion($version = null)
     {
         $this->enable();
-        if (preg_match('/^[1-9]\.[0-9](\.[0-9])?$/', $version)) {
+        if (preg_match('/^[1-9]\.[0-9]{1,2}(\.[0-9]{1,2})?$/', $version)) {
             $this->_cdnVersion = $version;
         }
         return $this;
@@ -503,10 +576,9 @@ class Zend_Dojo_View_Helper_Dojo_Container
             require_once 'Zend/Dojo/View/Exception.php';
             throw new Zend_Dojo_View_Exception('Invalid stylesheet module specified');
         }
-        if (in_array($module, $this->_stylesheetModules)) {
-            return $this;
+        if (!in_array($module, $this->_stylesheetModules)) {
+            $this->_stylesheetModules[] = $module;
         }
-        $this->_stylesheetModules[] = $module;
         return $this;
     }
 
@@ -773,7 +845,7 @@ class Zend_Dojo_View_Helper_Dojo_Container
     public function dijitsToJson()
     {
         require_once 'Zend/Json.php';
-        return Zend_Json::encode($this->getDijits());
+        return Zend_Json::encode($this->getDijits(), false, array('enableJsonExprFinder' => true));
     }
 
     /**
@@ -810,7 +882,7 @@ EOJ;
      */
     public function addJavascript($js)
     {
-        $js = preg_replace('/^\s*(.*?)\s*$/s', '$1', $js);
+        $js = trim($js);
         if (!in_array(substr($js, -1), array(';', '}'))) {
             $js .= ';';
         }
@@ -954,7 +1026,7 @@ EOJ;
             return '';
         }
 
-        array_reverse($stylesheets);
+        $stylesheets = array_reverse($stylesheets);
         $style = '<style type="text/css">' . PHP_EOL
                . (($this->_isXhtml) ? '<!--' : '<!--') . PHP_EOL;
         foreach ($stylesheets as $stylesheet) {
@@ -1023,11 +1095,18 @@ EOJ;
             return '';
         }
 
+        $enc = 'UTF-8';
+        if ($this->view instanceof Zend_View_Interface
+            && method_exists($this->view, 'getEncoding')
+        ) {
+            $enc = $this->view->getEncoding();
+        }
+
         $html = array();
         foreach ($layers as $path) {
             $html[] = sprintf(
                 '<script type="text/javascript" src="%s"></script>',
-                htmlentities($path, ENT_QUOTES)
+                htmlspecialchars($path, ENT_QUOTES, $enc)
             );
         }
 
@@ -1057,7 +1136,7 @@ EOJ;
         }
 
         $onLoadActions = array();
-        // Get Zend specific onLoad actions; these will always be first to 
+        // Get Zend specific onLoad actions; these will always be first to
         // ensure that dijits are created in the correct order
         foreach ($this->_getZendLoadActions() as $callback) {
             $onLoadActions[] = 'dojo.addOnLoad(' . $callback . ');';
@@ -1098,12 +1177,12 @@ EOJ;
     /**
      * Add an onLoad action related to ZF dijit creation
      *
-     * This method is public, but prefixed with an underscore to indicate that 
+     * This method is public, but prefixed with an underscore to indicate that
      * it should not normally be called by userland code. It is pertinent to
-     * ensuring that the correct order of operations occurs during dijit 
+     * ensuring that the correct order of operations occurs during dijit
      * creation.
-     * 
-     * @param  string $callback 
+     *
+     * @param  string $callback
      * @return Zend_Dojo_View_Helper_Dojo_Container
      */
     public function _addZendLoad($callback)
@@ -1116,7 +1195,7 @@ EOJ;
 
     /**
      * Retrieve all ZF dijit callbacks
-     * 
+     *
      * @return array
      */
     public function _getZendLoadActions()

@@ -15,9 +15,9 @@
  * @category   Zend
  * @package    Zend_Pdf
  * @subpackage FileParser
- * @copyright  Copyright (c) 2005-2009 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright  Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
- * @version    $Id: OpenType.php 18993 2009-11-15 17:09:16Z alexander $
+ * @version    $Id$
  */
 
 /** Zend_Pdf_FileParser_Font */
@@ -45,7 +45,7 @@ require_once 'Zend/Pdf/FileParser/Font.php';
  *
  * @package    Zend_Pdf
  * @subpackage FileParser
- * @copyright  Copyright (c) 2005-2009 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright  Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
  */
 abstract class Zend_Pdf_FileParser_Font_OpenType extends Zend_Pdf_FileParser_Font
@@ -500,11 +500,11 @@ abstract class Zend_Pdf_FileParser_Font_OpenType extends Zend_Pdf_FileParser_Fon
 
         try {
             $this->_jumpToTable('OS/2');
-        } catch (Zend_Pdf_Exception $exception) {
+        } catch (Zend_Pdf_Exception $e) {
             /* This table is not always present. If missing, use default values.
              */
             require_once 'Zend/Pdf/Exception.php';
-            if ($exception->getCode() == Zend_Pdf_Exception::REQUIRED_TABLE_NOT_FOUND) {
+            if ($e->getCode() == Zend_Pdf_Exception::REQUIRED_TABLE_NOT_FOUND) {
                 $this->_debugLog('No OS/2 table found. Using default values');
                 $this->fontWeight = Zend_Pdf_Font::WEIGHT_NORMAL;
                 $this->fontWidth = Zend_Pdf_Font::WIDTH_NORMAL;
@@ -525,7 +525,8 @@ abstract class Zend_Pdf_FileParser_Font_OpenType extends Zend_Pdf_FileParser_Fon
             } else {
                 /* Something else went wrong. Throw this exception higher up the chain.
                  */
-                throw $exception;
+                throw $e;
+                throw new Zend_Pdf_Exception($e->getMessage(), $e->getCode(), $e);
             }
         }
 
@@ -581,12 +582,24 @@ abstract class Zend_Pdf_FileParser_Font_OpenType extends Zend_Pdf_FileParser_Fon
              * outlines from fonts yet, so this means no embed.
              */
             $this->isEmbeddable = false;
-        } else if ($this->isBitSet(1, $embeddingFlags)) {
-            /* Restricted license embedding. We currently don't have any way to
-             * enforce this, so interpret this as no embed. This may be revised
-             * in the future...
-             */
-            $this->isEmbeddable = false;
+        } elseif ($this->isBitSet(2, $embeddingFlags)
+                || $this->isBitSet(3, $embeddingFlags)
+                || $this->isBitSet(4, $embeddingFlags)
+            ) {
+                /* One of:
+                 *     Restricted License embedding (0x0002)
+                 *     Preview & Print embedding (0x0004)
+                 *     Editable embedding (0x0008)
+                 * is set.
+                 */
+                $this->isEmbeddable = true;
+        } elseif ($this->isBitSet(1, $embeddingFlags)) {
+                /* Restricted license embedding & no other embedding is set.
+                 * We currently don't have any way to
+                 * enforce this, so interpret this as no embed. This may be revised
+                 * in the future...
+                 */
+                $this->isEmbeddable = false;
         } else {
             /* The remainder of the bit settings grant us permission to embed
              * the font. There may be additional usage rights granted or denied

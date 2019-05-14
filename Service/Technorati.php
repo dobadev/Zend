@@ -16,11 +16,13 @@
  * @category   Zend
  * @package    Zend_Service
  * @subpackage Technorati
- * @copyright  Copyright (c) 2005-2009 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright  Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
- * @version    $Id: Technorati.php 16211 2009-06-21 19:23:55Z thomas $
+ * @version    $Id$
  */
 
+/** @see Zend_Xml_Security */
+require_once 'Zend/Xml/Security.php';
 
 /**
  * Zend_Service_Technorati provides an easy, intuitive and object-oriented interface
@@ -32,7 +34,7 @@
  * @category   Zend
  * @package    Zend_Service
  * @subpackage Technorati
- * @copyright  Copyright (c) 2005-2009 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright  Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
  */
 class Zend_Service_Technorati
@@ -80,14 +82,19 @@ class Zend_Service_Technorati
      * Constructs a new Zend_Service_Technorati instance
      * and setup character encoding.
      *
-     * @param   string $apiKey  Your Technorati API key
+     * @param  string $apiKey  Your Technorati API key
      */
     public function __construct($apiKey)
     {
-        iconv_set_encoding('output_encoding', 'UTF-8');
-        iconv_set_encoding('input_encoding', 'UTF-8');
-        iconv_set_encoding('internal_encoding', 'UTF-8');
-
+        if (PHP_VERSION_ID < 50600) {
+            iconv_set_encoding('output_encoding', 'UTF-8');
+            iconv_set_encoding('input_encoding', 'UTF-8');
+            iconv_set_encoding('internal_encoding', 'UTF-8');
+        } else {
+            ini_set('output_encoding', 'UTF-8');
+            ini_set('input_encoding', 'UTF-8');
+            ini_set('default_charset', 'UTF-8');
+        }
         $this->_apiKey = $apiKey;
     }
 
@@ -961,7 +968,7 @@ class Zend_Service_Technorati
     protected function _convertResponseAndCheckContent(Zend_Http_Response $response)
     {
         $dom = new DOMDocument();
-        $dom->loadXML($response->getBody());
+        $dom = Zend_Xml_Security::scan($response->getBody(), $dom);
         self::_checkErrors($dom);
         return $dom;
     }

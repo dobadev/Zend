@@ -14,9 +14,9 @@
  *
  * @category   Zend
  * @package    Zend_Controller
- * @copyright  Copyright (c) 2005-2009 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright  Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
- * @version    $Id: HttpTestCase.php 18951 2009-11-12 16:26:19Z alexander $
+ * @version    $Id$
  */
 
 /**
@@ -62,6 +62,7 @@ class Zend_Controller_Request_HttpTestCase extends Zend_Controller_Request_Http
         'GET',
         'HEAD',
         'OPTIONS',
+        'PATCH',
         'POST',
         'PUT',
     );

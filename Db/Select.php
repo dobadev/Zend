@@ -15,9 +15,9 @@
  * @category   Zend
  * @package    Zend_Db
  * @subpackage Select
- * @copyright  Copyright (c) 2005-2009 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright  Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
- * @version    $Id: Select.php 19155 2009-11-21 09:48:02Z mikaelkael $
+ * @version    $Id$
  */
 
 
@@ -38,7 +38,7 @@ require_once 'Zend/Db/Expr.php';
  * @category   Zend
  * @package    Zend_Db
  * @subpackage Select
- * @copyright  Copyright (c) 2005-2009 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright  Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
  */
 class Zend_Db_Select
@@ -207,8 +207,8 @@ class Zend_Db_Select
      * The first parameter $name can be a simple string, in which case the
      * correlation name is generated automatically.  If you want to specify
      * the correlation name, the first parameter must be an associative
-     * array in which the key is the physical table name, and the value is
-     * the correlation name.  For example, array('table' => 'alias').
+     * array in which the key is the correlation name, and the value is
+     * the physical table name.  For example, array('alias' => 'table').
      * The correlation name is prepended to all columns fetched for this
      * table.
      *
@@ -219,8 +219,8 @@ class Zend_Db_Select
      * no correlation name is generated or prepended to the columns named
      * in the second parameter.
      *
-     * @param  array|string|Zend_Db_Expr $name The table name or an associative array relating table name to
-     *                                         correlation name.
+     * @param  array|string|Zend_Db_Expr $name The table name or an associative array
+     *                                         relating correlation name to table name.
      * @param  array|string|Zend_Db_Expr $cols The columns to select from this table.
      * @param  string $schema The schema name to specify, if any.
      * @return Zend_Db_Select This Zend_Db_Select object.
@@ -243,7 +243,8 @@ class Zend_Db_Select
     public function columns($cols = '*', $correlationName = null)
     {
         if ($correlationName === null && count($this->_parts[self::FROM])) {
-            $correlationName = current(array_keys($this->_parts[self::FROM]));
+            $correlationNameKeys = array_keys($this->_parts[self::FROM]);
+            $correlationName = current($correlationNameKeys);
         }
 
         if (!array_key_exists($correlationName, $this->_parts[self::FROM])) {
@@ -262,16 +263,27 @@ class Zend_Db_Select
     /**
      * Adds a UNION clause to the query.
      *
-     * The first parameter $select can be a string, an existing Zend_Db_Select
-     * object or an array of either of these types.
+     * The first parameter has to be an array of Zend_Db_Select or
+     * sql query strings.
      *
-     * @param  array|string|Zend_Db_Select $select One or more select clauses for the UNION.
+     * <code>
+     * $sql1 = $db->select();
+     * $sql2 = "SELECT ...";
+     * $select = $db->select()
+     *      ->union(array($sql1, $sql2))
+     *      ->order("id");
+     * </code>
+     *
+     * @param  array $select Array of select clauses for the union.
      * @return Zend_Db_Select This Zend_Db_Select object.
      */
     public function union($select = array(), $type = self::SQL_UNION)
     {
         if (!is_array($select)) {
-            $select = array();
+            require_once 'Zend/Db/Select/Exception.php';
+            throw new Zend_Db_Select_Exception(
+                "union() only accepts an array of Zend_Db_Select instances of sql query strings."
+            );
         }
 
         if (!in_array($type, self::$_unionTypes)) {
@@ -454,8 +466,8 @@ class Zend_Db_Select
      * </code>
      *
      * @param string   $cond  The WHERE condition.
-     * @param string   $value OPTIONAL A single value to quote into the condition.
-     * @param constant $type  OPTIONAL The type of the given value
+     * @param mixed    $value OPTIONAL The value to quote into the condition.
+     * @param int      $type  OPTIONAL The type of the given value
      * @return Zend_Db_Select This Zend_Db_Select object.
      */
     public function where($cond, $value = null, $type = null)
@@ -471,8 +483,8 @@ class Zend_Db_Select
      * Otherwise identical to where().
      *
      * @param string   $cond  The WHERE condition.
-     * @param string   $value OPTIONAL A single value to quote into the condition.
-     * @param constant $type  OPTIONAL The type of the given value
+     * @param mixed    $value OPTIONAL The value to quote into the condition.
+     * @param int      $type  OPTIONAL The type of the given value
      * @return Zend_Db_Select This Zend_Db_Select object.
      *
      * @see where()
@@ -497,7 +509,7 @@ class Zend_Db_Select
         }
 
         foreach ($spec as $val) {
-            if (preg_match('/\(.*\)/', (string) $val)) {
+            if (preg_match('/^([\w]*\(([^\)]|(?1))*\))$/', (string) $val)) {
                 $val = new Zend_Db_Expr($val);
             }
             $this->_parts[self::GROUP][] = $val;
@@ -514,14 +526,14 @@ class Zend_Db_Select
      * appears. See {@link where()} for an example
      *
      * @param string $cond The HAVING condition.
-     * @param string|Zend_Db_Expr $val A single value to quote into the condition.
+     * @param mixed    $value OPTIONAL The value to quote into the condition.
+     * @param int      $type  OPTIONAL The type of the given value
      * @return Zend_Db_Select This Zend_Db_Select object.
      */
-    public function having($cond)
+    public function having($cond, $value = null, $type = null)
     {
-        if (func_num_args() > 1) {
-            $val = func_get_arg(1);
-            $cond = $this->_adapter->quoteInto($cond, $val);
+        if ($value !== null) {
+            $cond = $this->_adapter->quoteInto($cond, $value, $type);
         }
 
         if ($this->_parts[self::HAVING]) {
@@ -539,16 +551,16 @@ class Zend_Db_Select
      * Otherwise identical to orHaving().
      *
      * @param string $cond The HAVING condition.
-     * @param string $val A single value to quote into the condition.
+     * @param mixed    $value OPTIONAL The value to quote into the condition.
+     * @param int      $type  OPTIONAL The type of the given value
      * @return Zend_Db_Select This Zend_Db_Select object.
      *
      * @see having()
      */
-    public function orHaving($cond)
+    public function orHaving($cond, $value = null, $type = null)
     {
-        if (func_num_args() > 1) {
-            $val = func_get_arg(1);
-            $cond = $this->_adapter->quoteInto($cond, $val);
+        if ($value !== null) {
+            $cond = $this->_adapter->quoteInto($cond, $value, $type);
         }
 
         if ($this->_parts[self::HAVING]) {
@@ -589,7 +601,7 @@ class Zend_Db_Select
                     $val = trim($matches[1]);
                     $direction = $matches[2];
                 }
-                if (preg_match('/\(.*\)/', $val)) {
+                if (preg_match('/^([\w]*\(([^\)]|(?1))*\))$/', (string) $val)) {
                     $val = new Zend_Db_Expr($val);
                 }
                 $this->_parts[self::ORDER][] = array($val, $direction);
@@ -642,7 +654,7 @@ class Zend_Db_Select
     }
 
     /**
-     * Get part of the structured information for the currect query.
+     * Get part of the structured information for the current query.
      *
      * @param string $part
      * @return mixed
@@ -706,7 +718,7 @@ class Zend_Db_Select
     {
         if ($part == null) {
             $this->_parts = self::$_partsInit;
-        } else if (array_key_exists($part, self::$_partsInit)) {
+        } elseif (array_key_exists($part, self::$_partsInit)) {
             $this->_parts[$part] = self::$_partsInit[$part];
         }
         return $this;
@@ -756,7 +768,7 @@ class Zend_Db_Select
 
         if (empty($name)) {
             $correlationName = $tableName = '';
-        } else if (is_array($name)) {
+        } elseif (is_array($name)) {
             // Must be array($correlationName => $tableName) or array($ident, ...)
             foreach ($name as $_correlationName => $_tableName) {
                 if (is_string($_correlationName)) {
@@ -770,10 +782,10 @@ class Zend_Db_Select
                 }
                 break;
             }
-        } else if ($name instanceof Zend_Db_Expr|| $name instanceof Zend_Db_Select) {
+        } elseif ($name instanceof Zend_Db_Expr|| $name instanceof Zend_Db_Select) {
             $tableName = $name;
             $correlationName = $this->_uniqueCorrelation('t');
-        } else if (preg_match('/^(.+)\s+AS\s+(.+)$/i', $name, $m)) {
+        } elseif (preg_match('/^(.+)\s+AS\s+(.+)$/i', $name, $m)) {
             $tableName = $m[1];
             $correlationName = $m[2];
         } else {
@@ -868,9 +880,13 @@ class Zend_Db_Select
         $join  = $this->_adapter->quoteIdentifier(key($this->_parts[self::FROM]), true);
         $from  = $this->_adapter->quoteIdentifier($this->_uniqueCorrelation($name), true);
 
-        $cond1 = $from . '.' . $cond;
-        $cond2 = $join . '.' . $cond;
-        $cond  = $cond1 . ' = ' . $cond2;
+        $joinCond = array();
+        foreach ((array)$cond as $fieldName) {
+            $cond1 = $from . '.' . $fieldName;
+            $cond2 = $join . '.' . $fieldName;
+            $joinCond[]  = $cond1 . ' = ' . $cond2;
+        }
+        $cond = implode(' '.self::SQL_AND.' ', $joinCond);
 
         return $this->_join($type, $name, $cond, $cols, $schema);
     }
@@ -884,7 +900,8 @@ class Zend_Db_Select
     private function _uniqueCorrelation($name)
     {
         if (is_array($name)) {
-            $c = end($name);
+            $k = key($name);
+            $c = is_string($k) ? $k : end($name);
         } else {
             // Extract just the last name of a qualified table name
             $dot = strrpos($name,'.');
@@ -926,7 +943,7 @@ class Zend_Db_Select
                     $alias = $m[2];
                 }
                 // Check for columns that look like functions and convert to Zend_Db_Expr
-                if (preg_match('/\(.*\)/', $col)) {
+                if (preg_match('/^([\w]*\(([^\)]|(?1))*\))$/', (string) $col)) {
                     $col = new Zend_Db_Expr($col);
                 } elseif (preg_match('/(.+)\.(.+)/', $col, $m)) {
                     $currentCorrelationName = $m[1];
@@ -972,7 +989,7 @@ class Zend_Db_Select
      * Internal function for creating the where clause
      *
      * @param string   $condition
-     * @param string   $value  optional
+     * @param mixed    $value  optional
      * @param string   $type   optional
      * @param boolean  $bool  true = AND, false = OR
      * @return string  clause
@@ -1079,7 +1096,7 @@ class Zend_Db_Select
             }
         }
 
-        return $sql .= ' ' . implode(', ', $columns);
+        return $sql . ' ' . implode(', ', $columns);
     }
 
     /**
@@ -1221,7 +1238,7 @@ class Zend_Db_Select
                     } else {
                         $order[] = $this->_adapter->quoteIdentifier($term[0], true) . ' ' . $term[1];
                     }
-                } else if (is_numeric($term) && strval(intval($term)) == $term) {
+                } elseif (is_numeric($term) && strval(intval($term)) == $term) {
                     $order[] = (int)trim($term);
                 } else {
                     $order[] = $this->_adapter->quoteIdentifier($term, true);

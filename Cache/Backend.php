@@ -15,16 +15,16 @@
  * @category   Zend
  * @package    Zend_Cache
  * @subpackage Zend_Cache_Backend
- * @copyright  Copyright (c) 2005-2009 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright  Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
- * @version    $Id: Backend.php 18951 2009-11-12 16:26:19Z alexander $
+ * @version    $Id$
  */
 
 
 /**
  * @package    Zend_Cache
  * @subpackage Zend_Cache_Backend
- * @copyright  Copyright (c) 2005-2009 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright  Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
  */
 class Zend_Cache_Backend
@@ -58,12 +58,10 @@ class Zend_Cache_Backend
      * Constructor
      *
      * @param  array $options Associative array of options
-     * @throws Zend_Cache_Exception
-     * @return void
      */
     public function __construct(array $options = array())
     {
-        while (list($name, $value) = each($options)) {
+        foreach ($options as $name => $value) {
             $this->setOption($name, $value);
         }
     }
@@ -112,6 +110,28 @@ class Zend_Cache_Backend
     }
 
     /**
+     * Returns an option
+     *
+     * @param string $name Optional, the options name to return
+     * @throws Zend_Cache_Exceptions
+     * @return mixed
+     */
+    public function getOption($name)
+    {
+        $name = strtolower($name);
+
+        if (array_key_exists($name, $this->_options)) {
+            return $this->_options[$name];
+        }
+
+        if (array_key_exists($name, $this->_directives)) {
+            return $this->_directives[$name];
+        }
+
+        Zend_Cache::throwException("Incorrect option name : {$name}");
+    }
+
+    /**
      * Get the life time
      *
      * if $specificLifetime is not false, the given specific life time is used
@@ -154,7 +174,7 @@ class Zend_Cache_Backend
         $tmpdir = array();
         foreach (array($_ENV, $_SERVER) as $tab) {
             foreach (array('TMPDIR', 'TEMP', 'TMP', 'windir', 'SystemRoot') as $key) {
-                if (isset($tab[$key])) {
+                if (isset($tab[$key]) && is_string($tab[$key])) {
                     if (($key == 'windir') or ($key == 'SystemRoot')) {
                         $dir = realpath($tab[$key] . '\\temp');
                     } else {
@@ -200,7 +220,7 @@ class Zend_Cache_Backend
     /**
      * Verify if the given temporary directory is readable and writable
      *
-     * @param $dir temporary directory
+     * @param string $dir temporary directory
      * @return boolean true if the directory is ok
      */
     protected function _isGoodTmpDir($dir)
@@ -226,24 +246,20 @@ class Zend_Cache_Backend
         if (!isset($this->_directives['logging']) || !$this->_directives['logging']) {
             return;
         }
-        try {
-            /**
-             * @see Zend_Log
-             */
-            require_once 'Zend/Log.php';
-        } catch (Zend_Exception $e) {
-            Zend_Cache::throwException('Logging feature is enabled but the Zend_Log class is not available');
-        }
+
         if (isset($this->_directives['logger'])) {
             if ($this->_directives['logger'] instanceof Zend_Log) {
                 return;
-            } else {
-                Zend_Cache::throwException('Logger object is not an instance of Zend_Log class.');
             }
+            Zend_Cache::throwException('Logger object is not an instance of Zend_Log class.');
         }
+
         // Create a default logger to the standard output stream
+        require_once 'Zend/Log.php';
         require_once 'Zend/Log/Writer/Stream.php';
+        require_once 'Zend/Log/Filter/Priority.php';
         $logger = new Zend_Log(new Zend_Log_Writer_Stream('php://output'));
+        $logger->addFilter(new Zend_Log_Filter_Priority(Zend_Log::WARN, '<='));
         $this->_directives['logger'] = $logger;
     }
 
@@ -251,7 +267,7 @@ class Zend_Cache_Backend
      * Log a message at the WARN (4) priority.
      *
      * @param  string $message
-     * @throws Zend_Cache_Exception
+     * @param  int    $priority
      * @return void
      */
     protected function _log($message, $priority = 4)

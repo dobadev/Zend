@@ -14,9 +14,9 @@
  *
  * @category   Zend
  * @package    Zend_Search_Lucene
- * @copyright  Copyright (c) 2005-2009 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright  Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
- * @version    $Id: MultiSearcher.php 19037 2009-11-19 14:47:13Z alexander $
+ * @version    $Id$
  */
 
 
@@ -24,14 +24,20 @@
 require_once 'Zend/Search/Lucene/Interface.php';
 
 /**
+ * Import Zend_Search_Lucene_Interface_MultiSearcher for BC (see ZF-12067)
+ * @see Zend_Search_Lucene_Interface_MultiSearcher 
+ */
+require_once 'Zend/Search/Lucene/Interface/MultiSearcher.php';
+
+/**
  * Multisearcher allows to search through several independent indexes.
  *
  * @category   Zend
  * @package    Zend_Search_Lucene
- * @copyright  Copyright (c) 2005-2009 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright  Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
  */
-class Zend_Search_Lucene_Interface_MultiSearcher implements Zend_Search_Lucene_Interface
+class Zend_Search_Lucene_MultiSearcher implements Zend_Search_Lucene_Interface
 {
     /**
      * List of indices for searching.
@@ -144,7 +150,7 @@ class Zend_Search_Lucene_Interface_MultiSearcher implements Zend_Search_Lucene_I
         $count = 0;
 
         foreach ($this->_indices as $index) {
-            $count += $this->_indices->count();
+            $count += $index->count();
         }
 
         return $count;
@@ -172,7 +178,7 @@ class Zend_Search_Lucene_Interface_MultiSearcher implements Zend_Search_Lucene_I
         $docs = 0;
 
         foreach ($this->_indices as $index) {
-            $docs += $this->_indices->numDocs();
+            $docs += $index->numDocs();
         }
 
         return $docs;
@@ -794,10 +800,15 @@ class Zend_Search_Lucene_Interface_MultiSearcher implements Zend_Search_Lucene_I
      * Set callback for choosing target index.
      *
      * @param callback $callback
+     * @throws Zend_Search_Lucene_Exception
      */
     public function setDocumentDistributorCallback($callback)
     {
-        if ($callback !== null  &&  !is_callable($callback))
+        if ($callback !== null  &&  !is_callable($callback)) {
+            require_once 'Zend/Search/Lucene/Exception.php';
+            throw new Zend_Search_Lucene_Exception('$callback parameter must be a valid callback.');
+        }
+
         $this->_documentDistributorCallBack = $callback;
     }
 
@@ -822,7 +833,7 @@ class Zend_Search_Lucene_Interface_MultiSearcher implements Zend_Search_Lucene_I
         if ($this->_documentDistributorCallBack !== null) {
             $index = call_user_func($this->_documentDistributorCallBack, $document, $this->_indices);
         } else {
-            $index = $this->_indices[ array_rand($this->_indices) ];
+            $index = $this->_indices[array_rand($this->_indices)];
         }
 
         $index->addDocument($document);
@@ -846,7 +857,7 @@ class Zend_Search_Lucene_Interface_MultiSearcher implements Zend_Search_Lucene_I
     public function optimize()
     {
         foreach ($this->_indices as $index) {
-            $index->_optimise();
+            $index->optimise();
         }
     }
 
@@ -965,4 +976,17 @@ class Zend_Search_Lucene_Interface_MultiSearcher implements Zend_Search_Lucene_I
     {
         // Do nothing, since it's never referenced by indices
     }
+}
+
+/**
+ * This class is provided for backwards-compatibility (See ZF-12067)
+ *
+ * @category   Zend
+ * @package    Zend_Search_Lucene
+ * @copyright  Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
+ * @license    http://framework.zend.com/license/new-bsd     New BSD License
+ */
+class Zend_Search_Lucene_Interface_MultiSearcher
+    extends Zend_Search_Lucene_MultiSearcher
+{
 }

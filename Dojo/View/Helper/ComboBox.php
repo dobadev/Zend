@@ -15,9 +15,9 @@
  * @category   Zend
  * @package    Zend_Dojo
  * @subpackage View
- * @copyright  Copyright (c) 2005-2009 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright  Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
- * @version    $Id: ComboBox.php 19058 2009-11-19 19:57:17Z matthew $
+ * @version    $Id$
  */
 
 /** Zend_Dojo_View_Helper_Dijit */
@@ -29,7 +29,7 @@ require_once 'Zend/Dojo/View/Helper/Dijit.php';
  * @uses       Zend_Dojo_View_Helper_Dijit
  * @package    Zend_Dojo
  * @subpackage View
- * @copyright  Copyright (c) 2005-2009 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright  Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
   */
 class Zend_Dojo_View_Helper_ComboBox extends Zend_Dojo_View_Helper_Dijit
@@ -100,6 +100,10 @@ class Zend_Dojo_View_Helper_ComboBox extends Zend_Dojo_View_Helper_Dijit
             return $html;
         }
 
+        // required for correct type casting in declerative mode 
+        if (isset($params['autocomplete'])) {
+            $params['autocomplete'] = ($params['autocomplete']) ? 'true' : 'false';
+        }
         // do as normal select
         $attribs = $this->_prepareDijit($attribs, $params, 'element');
         return $this->view->formSelect($id, $value, $attribs, $options);
